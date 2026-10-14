@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#183b32">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Meu Treino">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Meu Treino</title>
+<style>
+:root{--green:#183b32;--green2:#dcece5;--paper:#f6f7f3;--ink:#1d2925;--muted:#66736d;--line:#dce2dd;--white:#fff;--orange:#b96735}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding-bottom:calc(28px + env(safe-area-inset-bottom))}
+header{background:var(--green);color:#fff;padding:calc(18px + env(safe-area-inset-top)) 18px 22px;border-radius:0 0 24px 24px}
+header .eyebrow{font-size:12px;letter-spacing:1.4px;text-transform:uppercase;opacity:.8}h1{margin:5px 0 6px;font-size:28px}header p{margin:0;color:#e1eee8;font-size:14px}
+main{max-width:720px;margin:0 auto;padding:16px}
+.panel{background:var(--white);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px;box-shadow:0 3px 12px #172e2410}
+.section-title{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 12px;font-size:17px}
+button,select,input{font:inherit}button{cursor:pointer;border:0;border-radius:12px;padding:11px 13px;background:var(--green);color:#fff;font-weight:650}button.secondary{background:var(--green2);color:var(--green)}button.small{padding:8px 10px;font-size:13px}
+.monthbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}.monthbar button{padding:8px 12px}
+.monthlabel{font-weight:750;text-transform:capitalize}.weekdays,.calendar{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}.weekdays span{text-align:center;font-size:11px;color:var(--muted);padding:4px 0}
+.day{min-height:49px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);padding:5px 1px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:14px;position:relative}
+.day.muted{opacity:.32}.day.selected{background:var(--green);color:#fff;border-color:var(--green)}.day.today{outline:2px solid #a9c9ba;outline-offset:1px}.dot{width:5px;height:5px;border-radius:50%;background:var(--orange)}.day.selected .dot{background:#fff}
+label{display:block;font-size:13px;font-weight:650;margin-bottom:7px;color:var(--muted)}select,input[type=text]{width:100%;border:1px solid var(--line);border-radius:11px;padding:12px;background:#fff;color:var(--ink)}
+.row{display:flex;gap:10px;align-items:center}.row>*{flex:1}
+.date-title{font-size:19px;font-weight:800;margin:0}.subtle{color:var(--muted);font-size:13px;line-height:1.45}
+.progress-wrap{height:8px;background:#edf0ec;border-radius:20px;overflow:hidden;margin:12px 0 6px}.progress{height:100%;background:#5d9b7b;width:0%;transition:width .2s}
+.exercise{display:flex;gap:11px;align-items:flex-start;padding:13px 0;border-bottom:1px solid #edf0ec}.exercise:last-child{border-bottom:0}.exercise input{width:22px;height:22px;accent-color:var(--green);flex-shrink:0;margin-top:1px}.exname{font-weight:700;font-size:15px}.exmeta{font-size:13px;color:var(--muted);margin-top:4px}.done .exname{text-decoration:line-through;color:#75827b}
+.tag{display:inline-block;border-radius:7px;background:var(--green2);color:var(--green);font-size:11px;font-weight:750;padding:5px 7px;margin-top:6px}
+textarea{width:100%;min-height:74px;border:1px solid var(--line);border-radius:11px;padding:12px;font:inherit;resize:vertical}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.actions button{flex:1}
+.footer{text-align:center;color:var(--muted);font-size:11px;padding:5px 18px 15px}
+@media(min-width:600px){main{padding:22px}.day{min-height:60px}}
+</style>
+</head>
+<body>
+<header><div class="eyebrow">Rotina de força • recomposição corporal</div><h1>Meu Treino</h1><p>Escolha uma data, selecione o treino e marque cada exercício concluído.</p></header>
+<main>
+<section class="panel">
+  <div class="monthbar"><button class="secondary" id="prev" aria-label="Mês anterior">‹</button><div class="monthlabel" id="monthLabel"></div><button class="secondary" id="next" aria-label="Próximo mês">›</button></div>
+  <div class="weekdays"><span>SEG</span><span>TER</span><span>QUA</span><span>QUI</span><span>SEX</span><span>SÁB</span><span>DOM</span></div>
+  <div class="calendar" id="calendar"></div>
+  <p class="subtle" style="margin-bottom:0">Os pontos indicam datas com exercícios marcados. Seus registros ficam salvos neste aparelho/navegador.</p>
+</section>
+<section class="panel">
+  <div class="row" style="align-items:flex-start"><div><div class="subtle" id="weekday"></div><p class="date-title" id="selectedDate"></p></div><button class="secondary small" id="todayBtn">Hoje</button></div>
+  <div style="margin-top:15px"><label for="workout">Treino para esta data</label><select id="workout"></select></div>
+  <div class="progress-wrap"><div class="progress" id="progress"></div></div><div class="subtle" id="progressText">0 de 0 exercícios concluídos</div>
+  <div id="exerciseList" style="margin-top:8px"></div>
+  <div style="margin-top:14px"><label for="notes">Observações (carga, repetições, sensação)</label><textarea id="notes" placeholder="Ex.: elevação pélvica — 30 kg, execução boa..."></textarea></div>
+  <div class="actions"><button id="clearChecks" class="secondary">Desmarcar tudo</button><button id="finish">Concluir sessão</button></div>
+</section>
+<section class="panel">
+  <h2 class="section-title">Sugestão de semana</h2>
+  <div class="subtle">Segunda: Inferiores A • Terça: Pilates • Quarta: Superiores A • Quinta: Inferiores B • Sexta: Superiores B • Sábado: Inferiores C • Domingo: descanso.</div>
+  <p class="subtle">Se quiser fazer apenas cinco dias de atividade no total, deixe o sábado como descanso e use quatro sessões de musculação + Pilates.</p>
+</section>
+<section class="panel">
+  <h2 class="section-title">Backup dos registros</h2>
+  <p class="subtle">Exporte seus registros para guardar uma cópia ou importe um arquivo salvo anteriormente.</p>
+  <div class="actions"><button class="secondary" id="export">Exportar dados</button><button class="secondary" id="importBtn">Importar dados</button><input id="importFile" type="file" accept="application/json" hidden></div>
+</section>
+</main>
+<div class="footer">Treino inicial adaptável. Priorize técnica, progressão gradual e recuperação.</div>
+<script>
+const workouts = {
+ "Inferiores A — glúteos e quadríceps":[
+  ["Agachamento goblet com halter","3 séries × 8–12 repetições"],
+  ["Afundo reverso com halteres","3 × 8–10 por perna"],
+  ["Elevação pélvica com barra","3 × 10–12"],
+  ["Agachamento búlgaro","2 × 8–10 por perna"],
+  ["Abdução de quadril com elástico","2 × 15–20"]],
+ "Pilates":[["Aula de Pilates","Conforme orientação da aula"],["Caminhada leve (opcional)","15–25 minutos"]],
+ "Superiores A — peito, costas e ombros":[
+  ["Supino com halteres no banco","3 × 8–12"],
+  ["Remada unilateral com halter","3 × 8–12 por lado"],
+  ["Desenvolvimento com halteres","2 × 8–12"],
+  ["Elevação lateral","2 × 12–15"],
+  ["Rosca bíceps com halteres","2 × 10–15"],
+  ["Extensão de tríceps com halter/elástico","2 × 10–15"]],
+ "Inferiores B — posteriores e glúteos":[
+  ["Levantamento terra romeno com barra ou halteres","3 × 8–12"],
+  ["Elevação pélvica com barra","3 × 8–12"],
+  ["Step-up com halteres","2 × 8–10 por perna"],
+  ["Flexão de joelho com caneleiras/elástico","2 × 12–15"],
+  ["Abdução de quadril com elástico","2 × 15–20"]],
+ "Superiores B — costas, peito e braços":[
+  ["Remada curvada com halteres","3 × 8–12"],
+  ["Supino inclinado com halteres","3 × 8–12"],
+  ["Crucifixo inverso com halteres","2 × 12–15"],
+  ["Elevação lateral","2 × 12–15"],
+  ["Rosca bíceps","2 × 10–15"],
+  ["Tríceps com halter ou elástico","2 × 10–15"],
+  ["Prancha","2 × 20–40 segundos"]],
+ "Inferiores C — glúteos e pernas":[
+  ["Agachamento sumô com halter","3 × 10–12"],
+  ["Ponte de glúteos com carga","3 × 12–15"],
+  ["Afundo estático","2 × 8–10 por perna"],
+  ["Coice de glúteo com caneleira/elástico","2 × 12–15 por perna"],
+  ["Abdução de quadril com elástico","2 × 15–20"]],
+ "Caminhada / recuperação":[["Caminhada em ritmo confortável","20–30 minutos"],["Mobilidade leve (opcional)","5–10 minutos"]],
+ "Descanso":[["Descanso / recuperação","Sem treino obrigatório"]]
+};
+const suggested = {0:"Inferiores A — glúteos e quadríceps",1:"Pilates",2:"Superiores A — peito, costas e ombros",3:"Inferiores B — posteriores e glúteos",4:"Superiores B — costas, peito e braços",5:"Inferiores C — glúteos e pernas",6:"Descanso"};
+const $=id=>document.getElementById(id);
+let selected=new Date(); selected.setHours(12,0,0,0);
+let view=new Date(selected.getFullYear(),selected.getMonth(),1);
+let records=JSON.parse(localStorage.getItem("meuTreinoRecords")||"{}");
+const key=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+const sameDay=(a,b)=>key(a)===key(b);
+const fmtDate=d=>new Intl.DateTimeFormat("pt-BR",{day:"numeric",month:"long",year:"numeric"}).format(d);
+function save(){localStorage.setItem("meuTreinoRecords",JSON.stringify(records));renderCalendar();}
+function record(){const k=key(selected);if(!records[k]) records[k]={workout:suggested[selected.getDay()],checks:{},notes:""};return records[k];}
+function renderCalendar(){
+ $("monthLabel").textContent=new Intl.DateTimeFormat("pt-BR",{month:"long",year:"numeric"}).format(view);
+ const c=$("calendar");c.innerHTML="";
+ const first=new Date(view.getFullYear(),view.getMonth(),1);let offset=(first.getDay()+6)%7;
+ const start=new Date(first);start.setDate(first.getDate()-offset);
+ for(let i=0;i<42;i++){let d=new Date(start);d.setDate(start.getDate()+i);let b=document.createElement("button");b.className="day"+(d.getMonth()!==view.getMonth()?" muted":"")+(sameDay(d,selected)?" selected":"")+(sameDay(d,new Date())?" today":"");b.innerHTML=`<span>${d.getDate()}</span>${records[key(d)]&&Object.values(records[key(d)].checks||{}).some(Boolean)?'<i class="dot"></i>':''}`;b.onclick=()=>{selected=d;selected.setHours(12,0,0,0);if(view.getMonth()!==d.getMonth())view=new Date(d.getFullYear(),d.getMonth(),1);renderCalendar();renderDay();};c.appendChild(b);}
+}
+function renderDay(){
+ $("weekday").textContent=new Intl.DateTimeFormat("pt-BR",{weekday:"long"}).format(selected);
+ $("selectedDate").textContent=fmtDate(selected);
+ const r=record();const sel=$("workout");sel.innerHTML="";
+ Object.keys(workouts).forEach(w=>{let o=document.createElement("option");o.value=w;o.textContent=w;sel.appendChild(o);});
+ if(!workouts[r.workout])r.workout=suggested[selected.getDay()];
+ sel.value=r.workout;$("notes").value=r.notes||"";renderExercises();
+}
+function renderExercises(){
+ const r=record(), list=$("exerciseList");list.innerHTML="";
+ const ex=workouts[r.workout]||[];
+ ex.forEach((item,i)=>{const id=`${r.workout}-${i}`;const div=document.createElement("label");div.className="exercise"+(r.checks[id]?" done":"");div.style.color="inherit";div.innerHTML=`<input type="checkbox" ${r.checks[id]?"checked":""}><div><div class="exname">${item[0]}</div><div class="exmeta">${item[1]}</div></div>`;
+ const cb=div.querySelector("input");cb.onchange=()=>{r.checks[id]=cb.checked;save();renderExercises();};list.appendChild(div);});
+ const done=ex.filter((_,i)=>r.checks[`${r.workout}-${i}`]).length;
+ $("progress").style.width=(ex.length?100*done/ex.length:0)+"%";$("progressText").textContent=`${done} de ${ex.length} exercícios concluídos`;
+}
+$("prev").onclick=()=>{view=new Date(view.getFullYear(),view.getMonth()-1,1);renderCalendar()};
+$("next").onclick=()=>{view=new Date(view.getFullYear(),view.getMonth()+1,1);renderCalendar()};
+$("todayBtn").onclick=()=>{selected=new Date();selected.setHours(12,0,0,0);view=new Date(selected.getFullYear(),selected.getMonth(),1);renderCalendar();renderDay()};
+$("workout").onchange=()=>{const r=record();r.workout=$("workout").value;r.checks={};save();renderExercises();};
+$("notes").oninput=()=>{record().notes=$("notes").value;save();};
+$("clearChecks").onclick=()=>{record().checks={};save();renderExercises()};
+$("finish").onclick=()=>{const r=record();const n=(workouts[r.workout]||[]).length;for(let i=0;i<n;i++)r.checks[`${r.workout}-${i}`]=true;save();renderExercises();};
+$("export").onclick=()=>{const blob=new Blob([JSON.stringify(records,null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="meu-treino-registros.json";a.click();URL.revokeObjectURL(a.href)};
+$("importBtn").onclick=()=>$("importFile").click();
+$("importFile").onchange=async e=>{try{const f=e.target.files[0];if(!f)return;const data=JSON.parse(await f.text());if(typeof data!=="object")throw Error();records=data;save();renderDay();alert("Registros importados.");}catch(err){alert("Não foi possível importar esse arquivo.");}};
+renderCalendar();renderDay();
+if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body></html>

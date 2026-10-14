@@ -1,0 +1,17 @@
+MEU TREINO — versão para iPhone
+
+CONTEÚDO
+- index.html: aplicativo de treino com calendário, seleção de treino e checkboxes.
+- manifest.json e sw.js: suporte para instalação como app web (PWA) quando hospedado em HTTPS.
+- ícones para a tela inicial.
+
+COMO USAR NO IPHONE
+1. Para testar rapidamente, abra index.html em um navegador compatível, mas o modo de instalação pode não funcionar ao abrir o arquivo diretamente.
+2. Para instalar como ícone na tela inicial, publique os arquivos em um serviço de hospedagem HTTPS (por exemplo, GitHub Pages, Netlify ou outro de sua preferência).
+3. Abra o endereço HTTPS no Safari do iPhone.
+4. Toque em Compartilhar e escolha “Adicionar à Tela de Início”.
+5. Abra pelo ícone Meu Treino. Os checkboxes e observações ficam guardados no armazenamento local do navegador/aplicativo naquele aparelho.
+6. Use “Exportar dados” para salvar uma cópia dos registros. Os dados não são sincronizados automaticamente entre aparelhos.
+
+IMPORTANTE
+Este pacote é um aplicativo web progressivo (PWA), não um arquivo nativo .ipa. Um .ipa nativo exige projeto Xcode, assinatura e distribuição pela Apple. Os exercícios e volumes são uma proposta inicial; ajuste cargas à técnica e interrompa qualquer movimento que cause dor.
