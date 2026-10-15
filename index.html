@@ -84,7 +84,8 @@ textarea{width:100%;min-height:74px;border:1px solid var(--line);border-radius:1
   <div style="margin-top:15px"><label for="workout">Treino para esta data</label><select id="workout"></select></div>
   <div class="progress-wrap"><div class="progress" id="progress"></div></div><div class="subtle" id="progressText">0 de 0 exercícios concluídos</div>
   <div id="exerciseList" style="margin-top:8px"></div>
-  <p class="subtle" style="margin:6px 0 0">Toque em ✎ para renomear um exercício ou ajustar as repetições. A mudança vale para todas as datas deste treino no seu perfil.</p>
+  <div class="actions" style="margin-top:6px"><button class="secondary" id="addEx">+ Adicionar exercício</button><button class="ghost hidden" id="resetWorkout">Restaurar treino original</button></div>
+  <p class="subtle" style="margin:8px 0 0">Toque em ✎ para renomear, ajustar repetições ou excluir um exercício. As mudanças valem para todas as datas deste treino no seu perfil.</p>
   <div style="margin-top:14px"><label for="notes">Observações (carga, repetições, sensação)</label><textarea id="notes" placeholder="Ex.: elevação pélvica — 30 kg, execução boa..."></textarea></div>
   <div class="actions"><button id="clearChecks" class="secondary">Desmarcar tudo</button><button id="finish">Concluir sessão</button></div>
 </section>
@@ -180,7 +181,7 @@ $("newUserForm").onsubmit=e=>{
  if(!name){$("newUserName").focus();return}
  if(users.some(u=>u.name.toLowerCase()===name.toLowerCase())){alert("Já existe um perfil com esse nome.");return}
  const id=Date.now().toString(36)+Math.random().toString(36).slice(2,6);
- const newData={records:{},custom:{}};
+ const newData={records:{},lists:{}};
  const legacy=load(LS.legacy,null);
  if(legacy&&Object.keys(legacy).length&&!load(LS.migrated,false)){
   if(confirm("Encontrei registros da versão anterior do app. Deseja trazê-los para este perfil?")){newData.records=legacy;}
@@ -191,8 +192,8 @@ $("newUserForm").onsubmit=e=>{
 };
 function enterUser(id){
  currentUser=users.find(u=>u.id===id);if(!currentUser)return;
- data=load(LS.data(id),{records:{},custom:{}});
- data.records=data.records||{};data.custom=data.custom||{};records=data.records;
+ data=load(LS.data(id),{records:{},lists:{}});
+ data.records=data.records||{};migrate();records=data.records;store(LS.data(id),data);
  store(LS.last,id);
  selected=new Date();selected.setHours(12,0,0,0);view=new Date(selected.getFullYear(),selected.getMonth(),1);editing=null;
  $("profileScreen").classList.add("hidden");$("app").classList.remove("hidden");$("switchUser").classList.remove("hidden");
@@ -216,7 +217,18 @@ const sameDay=(a,b)=>key(a)===key(b);
 const fmtDate=d=>new Intl.DateTimeFormat("pt-BR",{day:"numeric",month:"long",year:"numeric"}).format(d);
 function save(){if(!currentUser)return;store(LS.data(currentUser.id),data);renderCalendar();}
 function record(){const k=key(selected);if(!records[k]) records[k]={workout:suggested[selected.getDay()],checks:{},notes:""};return records[k];}
-function exercisesOf(w){const custom=(data.custom[w])||{};return (workouts[w]||[]).map((e,i)=>custom[i]||e);}
+/* Cada exercício tem um id fixo: os originais usam o número da posição ("0","1"...), os adicionados usam "n...". */
+function defaults(w){return (workouts[w]||[]).map((e,i)=>({id:String(i),name:e[0],meta:e[1]}));}
+function original(w,id){const e=(workouts[w]||[])[+id];return /^\d+$/.test(id)&&e?{name:e[0],meta:e[1]}:null;}
+function migrate(){ // converte as renomeações da versão anterior
+ data.lists=data.lists||{};const c=data.custom||{};
+ for(const w in c){if(data.lists[w])continue;const l=defaults(w);let ch=false;
+  for(const i in c[w]){const it=l[+i];if(it&&c[w][i]){it.name=c[w][i][0];it.meta=c[w][i][1];ch=true}}
+  if(ch)data.lists[w]=l;}
+ delete data.custom;
+}
+function exercisesOf(w){return data.lists[w]||defaults(w);}
+function ensureList(w){if(!data.lists[w])data.lists[w]=defaults(w);return data.lists[w];}
 function renderCalendar(){
  $("monthLabel").textContent=new Intl.DateTimeFormat("pt-BR",{month:"long",year:"numeric"}).format(view);
  const c=$("calendar");c.innerHTML="";
@@ -232,55 +244,78 @@ function renderDay(){
  if(!workouts[r.workout])r.workout=suggested[selected.getDay()];
  sel.value=r.workout;$("notes").value=r.notes||"";renderExercises();
 }
+function editBox(title,item,opts){
+ const box=document.createElement("div");box.className="edit-box";
+ box.innerHTML=`<label>Exercício</label><input type="text" class="en" placeholder="Ex.: Cadeira extensora"><label>Séries / repetições</label><input type="text" class="em" placeholder="Ex.: 3 × 10–12"><div class="actions"><button class="ghost cancel">Cancelar</button><button class="ok"></button></div>`;
+ box.querySelector(".ok").textContent=title;
+ const en=box.querySelector(".en"), em=box.querySelector(".em");en.value=item.name||"";em.value=item.meta||"";
+ box.querySelector(".cancel").onclick=()=>{editing=null;renderExercises()};
+ box.querySelector(".ok").onclick=()=>{const n=en.value.trim();if(!n){en.focus();return}opts.save(n,em.value.trim());editing=null;save();renderExercises();};
+ const extra=document.createElement("div");extra.className="actions";extra.style.marginTop="6px";
+ if(opts.reset){const b=document.createElement("button");b.className="ghost";b.textContent="Restaurar original";b.onclick=()=>{opts.reset();editing=null;save();renderExercises();};extra.appendChild(b);}
+ if(opts.remove){const b=document.createElement("button");b.className="danger";b.textContent="Excluir exercício";b.onclick=()=>{if(!confirm(`Excluir "${item.name}" deste treino?`))return;opts.remove();editing=null;save();renderExercises();};extra.appendChild(b);}
+ if(extra.children.length)box.appendChild(extra);
+ setTimeout(()=>en.focus(),0);
+ return box;
+}
 function renderExercises(){
- const r=record(), list=$("exerciseList");list.innerHTML="";
- const ex=exercisesOf(r.workout), base=workouts[r.workout]||[];
- ex.forEach((item,i)=>{
-  const id=`${r.workout}-${i}`;
+ const r=record(), w=r.workout, list=$("exerciseList");list.innerHTML="";
+ const ex=exercisesOf(w);
+ ex.forEach(item=>{
+  const id=`${w}-${item.id}`;
   const row=document.createElement("div");row.className="exercise"+(r.checks[id]?" done":"");
-  if(editing===i){
-   row.innerHTML=`<div class="edit-box"><label>Exercício</label><input type="text" class="en"><label>Séries / repetições</label><input type="text" class="em"><div class="actions"><button class="ghost cancel">Cancelar</button><button class="ok">Salvar</button></div><div class="actions" style="margin-top:6px"><button class="ghost reset">Restaurar original</button></div></div>`;
-   const en=row.querySelector(".en"), em=row.querySelector(".em");en.value=item[0];em.value=item[1];
-   row.querySelector(".cancel").onclick=()=>{editing=null;renderExercises()};
-   row.querySelector(".ok").onclick=()=>{
-    const n=en.value.trim()||base[i][0], m=em.value.trim();
-    data.custom[r.workout]=data.custom[r.workout]||{};
-    if(n===base[i][0]&&m===base[i][1])delete data.custom[r.workout][i];else data.custom[r.workout][i]=[n,m];
-    editing=null;save();renderExercises();};
-   row.querySelector(".reset").onclick=()=>{if(data.custom[r.workout])delete data.custom[r.workout][i];editing=null;save();renderExercises();};
-   list.appendChild(row);setTimeout(()=>en.focus(),0);return;
+  if(editing===item.id){
+   const orig=original(w,item.id);
+   row.appendChild(editBox("Salvar",item,{
+    save:(n,m)=>{const it=ensureList(w).find(x=>x.id===item.id);it.name=n;it.meta=m;},
+    reset:orig&&(orig.name!==item.name||orig.meta!==item.meta)?()=>{const it=ensureList(w).find(x=>x.id===item.id);it.name=orig.name;it.meta=orig.meta;}:null,
+    remove:()=>{data.lists[w]=ensureList(w).filter(x=>x.id!==item.id);delete r.checks[id];}
+   }));
+   list.appendChild(row);return;
   }
   const lab=document.createElement("label");lab.className="check";
   const cb=document.createElement("input");cb.type="checkbox";cb.checked=!!r.checks[id];
   const txt=document.createElement("div");
-  const nm=document.createElement("div");nm.className="exname";nm.textContent=item[0];
-  const mt=document.createElement("div");mt.className="exmeta";mt.textContent=item[1];
+  const nm=document.createElement("div");nm.className="exname";nm.textContent=item.name;
+  const mt=document.createElement("div");mt.className="exmeta";mt.textContent=item.meta;
   txt.append(nm,mt);
-  if(data.custom[r.workout]&&data.custom[r.workout][i]){const t=document.createElement("div");t.className="edited";t.textContent="Personalizado";txt.appendChild(t);}
+  const orig=original(w,item.id);
+  const tag=!orig?"Adicionado":(orig.name!==item.name||orig.meta!==item.meta)?"Personalizado":"";
+  if(tag){const t=document.createElement("div");t.className="edited";t.textContent=tag;txt.appendChild(t);}
   lab.append(cb,txt);
   cb.onchange=()=>{r.checks[id]=cb.checked;save();renderExercises();};
-  const btn=document.createElement("button");btn.className="icon-btn";btn.textContent="✎";btn.setAttribute("aria-label","Renomear exercício");
-  btn.onclick=()=>{editing=i;renderExercises()};
+  const btn=document.createElement("button");btn.className="icon-btn";btn.textContent="✎";btn.setAttribute("aria-label","Editar exercício");
+  btn.onclick=()=>{editing=item.id;renderExercises()};
   row.append(lab,btn);list.appendChild(row);
  });
- const done=ex.filter((_,i)=>r.checks[`${r.workout}-${i}`]).length;
+ if(editing==="new"){
+  const row=document.createElement("div");row.className="exercise";
+  row.appendChild(editBox("Adicionar",{},{save:(n,m)=>{ensureList(w).push({id:"n"+Date.now().toString(36),name:n,meta:m});}}));
+  list.appendChild(row);
+ }
+ if(!ex.length&&editing!=="new"){const p=document.createElement("p");p.className="subtle";p.textContent="Nenhum exercício neste treino. Use “+ Adicionar exercício”.";list.appendChild(p);}
+ $("addEx").classList.toggle("hidden",editing==="new");
+ $("resetWorkout").classList.toggle("hidden",!data.lists[w]);
+ const done=ex.filter(it=>r.checks[`${w}-${it.id}`]).length;
  $("progress").style.width=(ex.length?100*done/ex.length:0)+"%";$("progressText").textContent=`${done} de ${ex.length} exercícios concluídos`;
 }
+$("addEx").onclick=()=>{editing="new";renderExercises()};
+$("resetWorkout").onclick=()=>{const w=record().workout;if(!confirm(`Voltar o treino "${w}" para a lista original? Exercícios adicionados, excluídos ou renomeados serão desfeitos.`))return;delete data.lists[w];editing=null;save();renderExercises();};
 $("prev").onclick=()=>{view=new Date(view.getFullYear(),view.getMonth()-1,1);renderCalendar()};
 $("next").onclick=()=>{view=new Date(view.getFullYear(),view.getMonth()+1,1);renderCalendar()};
 $("todayBtn").onclick=()=>{selected=new Date();selected.setHours(12,0,0,0);editing=null;view=new Date(selected.getFullYear(),selected.getMonth(),1);renderCalendar();renderDay()};
 $("workout").onchange=()=>{const r=record();r.workout=$("workout").value;r.checks={};editing=null;save();renderExercises();};
 $("notes").oninput=()=>{record().notes=$("notes").value;save();};
 $("clearChecks").onclick=()=>{record().checks={};save();renderExercises()};
-$("finish").onclick=()=>{const r=record();const n=(workouts[r.workout]||[]).length;for(let i=0;i<n;i++)r.checks[`${r.workout}-${i}`]=true;save();renderExercises();};
+$("finish").onclick=()=>{const r=record();exercisesOf(r.workout).forEach(it=>r.checks[`${r.workout}-${it.id}`]=true);save();renderExercises();};
 $("export").onclick=()=>{
- const payload={app:"meu-treino",version:2,name:currentUser.name,records:data.records,custom:data.custom};
+ const payload={app:"meu-treino",version:3,name:currentUser.name,records:data.records,lists:data.lists};
  const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);
  a.download=`meu-treino-${currentUser.name.toLowerCase().replace(/[^a-z0-9]+/gi,"-")}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
 $("importBtn").onclick=()=>$("importFile").click();
 $("importFile").onchange=async e=>{try{const f=e.target.files[0];if(!f)return;const d=JSON.parse(await f.text());if(!d||typeof d!=="object")throw Error();
  if(!confirm(`Substituir os registros de ${currentUser.name} pelos do arquivo?`))return;
- if(d.app==="meu-treino"){data.records=d.records||{};data.custom=d.custom||{};}else{data.records=d;} // formato antigo
+ if(d.app==="meu-treino"){data.records=d.records||{};data.lists=d.lists||{};data.custom=d.custom;migrate();}else{data.records=d;} // formato antigo
  records=data.records;save();renderDay();alert("Registros importados.");}catch(err){alert("Não foi possível importar esse arquivo.");}finally{e.target.value="";}};
 
 showProfiles();
